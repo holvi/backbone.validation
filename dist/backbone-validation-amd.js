@@ -266,7 +266,7 @@
               }
             });
   
-            if (result.invalidAttrs){
+            if (result.invalidAttrs && Object.keys(result.invalidAttrs).length > 0){
               return result.invalidAttrs;
             }
           }
