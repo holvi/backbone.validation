@@ -28,7 +28,12 @@ Backbone.Validation = (function(_){
     // passed to the function
     format: function() {
       var args = Array.prototype.slice.call(arguments),
-          text = args.shift();
+          text = args.shift(),
+          preFormatMessage = Backbone.Validation.preFormatMessage;
+
+      if (preFormatMessage && _.isFunction(preFormatMessage)){
+        text = preFormatMessage(text);
+      }
       return text.replace(/\{(\d+)\}/g, function(match, number) {
         return typeof args[number] !== 'undefined' ? args[number] : match;
       });
