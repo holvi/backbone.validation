@@ -35,7 +35,12 @@ Backbone.Validation = (function(_){
     // passed to the function
     format: function() {
       var args = Array.prototype.slice.call(arguments),
-          text = args.shift();
+          text = args.shift(),
+          preFormatMessage = Backbone.Validation.preFormatMessage;
+
+      if (preFormatMessage && _.isFunction(preFormatMessage)){
+        text = preFormatMessage(text);
+      }
       return text.replace(/\{(\d+)\}/g, function(match, number) {
         return typeof args[number] !== 'undefined' ? args[number] : match;
       });
@@ -55,6 +60,10 @@ Backbone.Validation = (function(_){
   // becomes:
   //
   //     var o = {
+  //       address: {
+  //         street: 'Street',
+  //         zip: 1234
+  //       },
   //       'address.street': 'Street',
   //       'address.zip': 1234
   //     };
@@ -73,9 +82,8 @@ Backbone.Validation = (function(_){
         ) {
           flatten(val, into, prefix + key + '.');
         }
-        else {
-          into[prefix + key] = val;
-        }
+
+        into[prefix + key] = val;
       }
     });
 
