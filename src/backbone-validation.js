@@ -48,6 +48,10 @@ Backbone.Validation = (function(_){
   // becomes:
   //
   //     var o = {
+  //       address: {
+  //         street: 'Street',
+  //         zip: 1234
+  //       },
   //       'address.street': 'Street',
   //       'address.zip': 1234
   //     };
@@ -66,9 +70,8 @@ Backbone.Validation = (function(_){
         ) {
           flatten(val, into, prefix + key + '.');
         }
-        else {
-          into[prefix + key] = val;
-        }
+
+        into[prefix + key] = val;
       }
     });
 
