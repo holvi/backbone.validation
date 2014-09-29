@@ -261,8 +261,8 @@
               attributes = {};
   
               if (!nestedObj) {
-                  console.log('We\'re missing a related model here, it needs to be initialized with model!');
-                  return;
+                // Nothing to do here: there is no object to validate
+                return;
               }
   
               var isNestedModel = nestedObj instanceof Backbone.Model,
