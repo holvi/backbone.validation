@@ -74,14 +74,14 @@
     //       'address.street': 'Street',
     //       'address.zip': 1234
     //     };
-    var flatten = function (obj, into, prefix) {
+    var flatten = function (obj, into, prefix, flattenArrays) {
       into = into || {};
       prefix = prefix || '';
   
       _.each(obj, function(val, key) {
         if(obj.hasOwnProperty(key)) {
           if (val && typeof val === 'object' && !(
-            val instanceof Array ||
+            (flattenArrays? false : val instanceof Array) ||
             val instanceof Date ||
             val instanceof RegExp ||
             val instanceof Backbone.Model ||
@@ -172,7 +172,7 @@
       // Loops through the model's attributes and validates them all.
       // Returns and object containing names of invalid attributes
       // as well as error messages.
-      var validateModel = function(model, attrs) {
+      var validateModel = function(model, attrs, prefix) {
         var error,
             invalidAttrs = {},
             isValid = true,
@@ -182,7 +182,7 @@
         _.each(flattened, function(val, attr) {
           error = validateAttr(model, attr, val, computed);
           if (error) {
-            invalidAttrs[attr] = error;
+            invalidAttrs[prefix? prefix + '.' + attr : attr] = error;
             isValid = false;
           }
         });
@@ -249,10 +249,59 @@
                 validatedAttrs = getValidatedAttrs(model),
                 allAttrs = _.extend({}, validatedAttrs, model.attributes, attrs),
                 changedAttrs = flatten(attrs || allAttrs),
+                result = validateModel(model, allAttrs),
+                nestedModels = model.relations,
+                validatedNestedModels = {},
+                subResult = { invalidAttrs: {}, isValid : true },
+                tmpResult;
   
-                result = validateModel(model, allAttrs);
+            // Validate nested models..
+            _.each(nestedModels, function(unused, key) {
+              var nestedObj = allAttrs[key],
+              attributes = {};
   
-            model._isValid = result.isValid;
+              if (!nestedObj) {
+                  console.log('We\'re missing a related model here, it needs to be initialized with model!');
+                  return;
+              }
+  
+              var isNestedModel = nestedObj instanceof Backbone.Model,
+                  isNestedCollection = nestedObj instanceof Backbone.Collection;
+  
+              if (isNestedModel) {
+                var validation = nestedObj.validation;
+                _.each(validation, function(unused, key){
+                  attributes[key] = nestedObj.get(key);
+                });
+  
+                tmpResult = validateModel(nestedObj, attributes, key);
+                subResult.isValid = subResult.isValid && tmpResult.isValid;
+                _.extend(subResult.invalidAttrs, tmpResult.invalidAttrs);
+                validatedNestedModels[key] = getValidatedAttrs(nestedObj);
+              }
+  
+              if (isNestedCollection) {
+                validatedNestedModels[key] = [];
+                _.each(nestedObj.models, function(modelInCollection, index){
+                  var validation = modelInCollection.validation;
+                  _.each(validation, function(unused, key){
+                    attributes[key] = modelInCollection.get(key);
+                  });
+  
+                  tmpResult = validateModel(modelInCollection, attributes, key + '.' + index);
+                  subResult.isValid = subResult.isValid && tmpResult.isValid;
+                  _.extend(subResult.invalidAttrs, tmpResult.invalidAttrs);
+                  validatedNestedModels[key].push(getValidatedAttrs(modelInCollection));
+                });
+              }
+            });
+  
+            model._isValid = result.isValid && subResult.isValid;
+  
+            // Mix subResults with results
+            validatedNestedModels = flatten(validatedNestedModels, null, null, true);
+            _.extend(validatedAttrs, validatedNestedModels);
+            _.extend(result.invalidAttrs, subResult.invalidAttrs);
   
             // After validation is performed, loop through all validated attributes
             // and call the valid callbacks so the view is updated.
